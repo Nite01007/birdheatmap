@@ -1,0 +1,35 @@
+[Unit]
+Description=BirdHeatmap — annual species-activity heatmaps from BirdWeather data
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=birdheatmap
+Group=birdheatmap
+
+EnvironmentFile=/etc/birdheatmap/birdheatmap.env
+# Prevent Python from writing __pycache__ at runtime (ProtectSystem=strict
+# makes the code directory read-only; pip already compiled .pyc on install).
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=MPLCONFIGDIR=/var/lib/birdheatmap/.matplotlib
+WorkingDirectory=/opt/birdheatmap
+
+ExecStart=/opt/birdheatmap/venv/bin/python -m birdheatmap serve
+Restart=on-failure
+RestartSec=10
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/birdheatmap
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=birdheatmap
+
+[Install]
+WantedBy=multi-user.target

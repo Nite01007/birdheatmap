@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en" data-theme="{{ theme }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BirdHeatmap</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0e0e14;
+      --surface: #16161f;
+      --border:  #2a2a3c;
+      --fg:      #c8c8d4;
+      --fg-dim:  #666680;
+      --accent:  #5ba8d4;
+      --sun:     #e8a04a;
+      --ok:      #5ba87a;
+      --warn:    #e8a04a;
+    }
+    :root[data-theme="light"] {
+      --bg:      #f8f8fc;
+      --surface: #eeeef6;
+      --border:  #ccccdc;
+      --fg:      #2a2a3c;
+      --fg-dim:  #666680;
+      --accent:  #1a6fa8;
+      --sun:     #b86a10;
+      --ok:      #1a7830;
+      --warn:    #b86a10;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: ui-monospace, "Cascadia Code", "Fira Mono", monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    header {
+      padding: 14px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+    header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+    header .subtitle {
+      color: var(--fg-dim);
+      font-size: 11px;
+    }
+
+    /* ── Sync banner ────────────────────────────────── */
+    .sync-banner {
+      padding: 7px 20px;
+      border-bottom: 1px solid var(--border);
+      color: var(--fg-dim);
+      font-size: 11px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .sync-banner span { white-space: nowrap; }
+    .sync-banner .ok   { color: var(--ok);   }
+    .sync-banner .warn { color: var(--warn); }
+
+    /* ── Controls bar ───────────────────────────────── */
+    .controls {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      color: var(--fg-dim);
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    select {
+      background: var(--surface);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      min-width: 180px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666680'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 24px;
+    }
+    select:focus {
+      outline: 1px solid var(--accent);
+      border-color: var(--accent);
+    }
+
+    button[type=submit] {
+      background: var(--accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 18px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      align-self: flex-end;
+      margin-bottom: 1px;
+    }
+    button[type=submit]:hover { filter: brightness(1.1); }
+
+    /* ── Image area ─────────────────────────────────── */
+    .plot-area {
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .plot-area img {
+      max-width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      display: block;
+    }
+
+    .no-selection {
+      color: var(--fg-dim);
+      padding: 60px 20px;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    .theme-toggle {
+      margin-left: auto;
+      color: var(--fg-dim);
+      text-decoration: none;
+      font-size: 11px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 10px;
+      white-space: nowrap;
+    }
+    .theme-toggle:hover { color: var(--fg); border-color: var(--fg-dim); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>BirdHeatmap</h1>
+  <span class="subtitle">BirdWeather · {{ station_label }}</span>
+  <a class="theme-toggle" href="{{ theme_toggle_url }}">
+    {% if theme == "light" %}Dark mode{% else %}Light mode{% endif %}
+  </a>
+</header>
+
+<!-- Sync status banner -->
+<div class="sync-banner">
+  <span>Last sync: <strong>{{ status.last_sync }}</strong></span>
+  <span>{{ status.n_detections }} detections cached</span>
+  <span>Backfill:
+    {% if status.backfill == "complete" %}
+      <strong class="ok">complete</strong>
+    {% elif status.backfill == "in progress" %}
+      <strong class="warn">in progress</strong>
+    {% else %}
+      <strong class="warn">{{ status.backfill }}</strong>
+    {% endif %}
+  </span>
+</div>
+
+<!-- Controls -->
+<form method="get" action="/">
+  <input type="hidden" name="theme" value="{{ theme }}">
+  <div class="controls">
+
+    <!-- Plot type -->
+    <label>
+      Plot type
+      <select name="plot_type" onchange="this.form.submit()">
+        {% for name, pm in registry.items() %}
+          <option value="{{ name }}"
+            {% if name == plot_type %}selected{% endif %}>
+            {{ pm.display_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <!-- Species -->
+    <label>
+      Species
+      <select name="species_id" onchange="this.form.submit()">
+        <option value="">— select a species —</option>
+        {% for sp in species_list %}
+          <option value="{{ sp.id }}"
+            {% if sp.id == species_id %}selected{% endif %}>
+            {{ sp.common_name }}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <!-- Plot-type-specific params (e.g. year) -->
+    {% for p in plot_params %}
+      {% if p.name == "year" %}
+        <label>
+          {{ p.label }}
+          <select name="year">
+            {% if p._choices %}
+              {% for y in p._choices | sort(reverse=True) %}
+                <option value="{{ y }}"
+                  {% if y == p._value %}selected{% endif %}>
+                  {{ y }}
+                </option>
+              {% endfor %}
+            {% else %}
+              <option value="">— no data —</option>
+            {% endif %}
+          </select>
+        </label>
+      {% elif p.type == "select" and p._choices %}
+        <label>
+          {{ p.label }}
+          <select name="{{ p.name }}">
+            {% for c in p._choices %}
+              <option value="{{ c }}"
+                {% if c == p._value %}selected{% endif %}>
+                {{ c }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+      {% elif p.type == "int" %}
+        <label>
+          {{ p.label }}
+          <input type="number" name="{{ p.name }}" value="{{ p._value or '' }}"
+                 style="width:80px; background:var(--surface); color:var(--fg);
+                        border:1px solid var(--border); border-radius:4px;
+                        padding:5px 8px; font-family:inherit; font-size:12px;">
+        </label>
+      {% endif %}
+    {% endfor %}
+
+    <button type="submit">Show</button>
+  </div>
+</form>
+
+<hr class="divider">
+
+<!-- Plot output -->
+<div class="plot-area">
+  {% if show_image %}
+    <img
+      src="{{ url_for('plot_image', plot_type=plot_type, species_id=species_id, year=year, theme=theme) }}"
+      alt="Annual heatmap for species {{ species_id }}, {{ year }}"
+      width="1000" height="800"
+    >
+  {% else %}
+    <p class="no-selection">Select a species to render a plot.</p>
+  {% endif %}
+</div>
+
+</body>
+</html>

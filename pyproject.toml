@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "birdheatmap"
+version = "0.1.0"
+description = "Annual species-activity heatmaps from BirdWeather station data"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31",
+    "matplotlib>=3.8",
+    "astral>=3.2",
+    "flask>=3.0",
+    "apscheduler>=3.10",
+    "python-dotenv>=1.0",
+    "click>=8.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.12",
+]
+
+[project.scripts]
+birdheatmap = "birdheatmap.__main__:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+birdheatmap = ["templates/*.html", "plots/README.md"]
