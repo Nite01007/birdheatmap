@@ -72,13 +72,53 @@ def _sync_status(conn) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
 def _validated_theme(raw: str | None) -> str:
     return "light" if raw == "light" else "dark"
 
+
+def _parse_year(raw: str | None, year_type: str, years: list[int]) -> int | str | None:
+    """Parse the year query param, honouring the year_or_all type if needed."""
+    if year_type == "year_or_all":
+        if raw == "all":
+            return "all"
+        try:
+            return int(raw) or (max(years) if years else None)
+        except (TypeError, ValueError):
+            return max(years) if years else None
+    else:
+        try:
+            return int(raw or 0) or (max(years) if years else None)
+        except (TypeError, ValueError):
+            return max(years) if years else None
+
+
+def _gather_extra_params(plot_spec: list[dict], request_args) -> dict:
+    """Read all non-year/non-theme params from request args, coercing types."""
+    extra: dict = {}
+    for p in plot_spec:
+        if p["name"] in ("year", "theme"):
+            continue
+        val = request_args.get(p["name"])
+        if val is None:
+            val = p.get("default")
+        if val is not None:
+            if p.get("type") == "int":
+                try:
+                    val = int(val)
+                except (TypeError, ValueError):
+                    val = p.get("default")
+            elif p.get("type") == "float":
+                try:
+                    val = float(val)
+                except (TypeError, ValueError):
+                    val = p.get("default")
+        extra[p["name"]] = val
+    return extra
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 
 @app.route("/")
 def index():
@@ -109,10 +149,15 @@ def index():
     years = get_detection_years(conn, species_id) if species_id else []
     conn.close()
 
-    try:
-        year = int(request.args.get("year", 0)) or (max(years) if years else None)
-    except (TypeError, ValueError):
-        year = max(years) if years else None
+    # Determine the year param type for this plot (if any).
+    year_spec = None
+    if plot_type and plot_type in registry:
+        year_spec = next(
+            (p for p in registry[plot_type].params if p["name"] == "year"),
+            None,
+        )
+    year_type = year_spec.get("type", "int") if year_spec else "int"
+    year = _parse_year(request.args.get("year"), year_type, years)
 
     # Build parameter inputs for the active plot type.
     plot_params: list[dict] = []
@@ -128,9 +173,23 @@ def index():
             plot_params.append(spec)
 
     # Show the image if species + plot type are both selected.
-    # For plots with no year param (e.g. all_years), year being None is fine.
     has_year_param = any(p["name"] == "year" for p in plot_params)
-    show_image = bool(species_id and plot_type and (year or not has_year_param))
+    show_image = bool(species_id and plot_type and (year is not None or not has_year_param))
+
+    # Build the image URL dynamically so all params (including extras) are included.
+    plot_image_url = None
+    if show_image:
+        img_kwargs: dict = {
+            "plot_type":  plot_type,
+            "species_id": species_id,
+            "theme":      theme,
+        }
+        if year is not None:
+            img_kwargs["year"] = year
+        for p in plot_params:
+            if p["name"] not in ("year", "theme") and p.get("_value") is not None:
+                img_kwargs[p["name"]] = p["_value"]
+        plot_image_url = url_for("plot_image", **img_kwargs)
 
     return render_template(
         "index.html",
@@ -141,6 +200,7 @@ def index():
         year             = year,
         plot_params      = plot_params,
         show_image       = show_image,
+        plot_image_url   = plot_image_url,
         status           = status,
         theme            = theme,
         theme_toggle_url = theme_toggle_url,
@@ -153,27 +213,50 @@ def plot_image(plot_type: str, species_id: int):
     if plot_type not in registry:
         abort(404)
 
-    try:
-        year = int(request.args.get("year", 0)) or datetime.now(tz=timezone.utc).year
-    except (TypeError, ValueError):
-        year = datetime.now(tz=timezone.utc).year
+    plot_spec = registry[plot_type].params
+    theme     = _validated_theme(request.args.get("theme"))
 
-    theme = _validated_theme(request.args.get("theme"))
+    # Determine year, honouring year_or_all type.
+    year_spec = next((p for p in plot_spec if p["name"] == "year"), None)
+    year_type = year_spec.get("type", "int") if year_spec else "int"
 
-    conn = _open()
+    if year_type == "year_or_all":
+        raw = request.args.get("year", "")
+        if raw == "all":
+            year: int | str = "all"
+        else:
+            try:
+                year = int(raw) if raw else datetime.now(tz=timezone.utc).year
+            except (TypeError, ValueError):
+                year = datetime.now(tz=timezone.utc).year
+    else:
+        try:
+            year = int(request.args.get("year", 0)) or datetime.now(tz=timezone.utc).year
+        except (TypeError, ValueError):
+            year = datetime.now(tz=timezone.utc).year
+
+    # Gather all extra params from the plot's PARAMS spec.
+    extra_params = _gather_extra_params(plot_spec, request.args)
+    cache_extra  = extra_params if extra_params else None
+
+    conn  = _open()
     db_lm = get_db_last_modified(conn)
 
-    png = get_cached(config.CACHE_PATH, plot_type, species_id, year, db_lm, theme)
+    png = get_cached(config.CACHE_PATH, plot_type, species_id, year, db_lm, theme, cache_extra)
     if png is None:
-        logger.info("Cache miss — rendering %s / species=%d / year=%d / theme=%s",
-                    plot_type, species_id, year, theme)
+        logger.info(
+            "Cache miss — rendering %s / species=%d / year=%s / theme=%s / extra=%s",
+            plot_type, species_id, year, theme, extra_params,
+        )
         try:
-            png = registry[plot_type].render(conn, species_id, year=year, theme=theme)
+            png = registry[plot_type].render(
+                conn, species_id, year=year, theme=theme, **extra_params
+            )
         except Exception:
             logger.exception("Render failed")
             conn.close()
             abort(500)
-        put_cached(config.CACHE_PATH, plot_type, species_id, year, db_lm, png, theme)
+        put_cached(config.CACHE_PATH, plot_type, species_id, year, db_lm, png, theme, cache_extra)
 
     conn.close()
     return Response(png, mimetype="image/png",

@@ -222,9 +222,30 @@
       </select>
     </label>
 
-    <!-- Plot-type-specific params (e.g. year) -->
+    <!-- Plot-type-specific params (year, selects, ints, floats) -->
     {% for p in plot_params %}
-      {% if p.name == "year" %}
+      {% if p.name == "year" and p.type == "year_or_all" %}
+        <!-- Year-or-all dropdown: DB years + "All Years" option -->
+        <label>
+          {{ p.label }}
+          <select name="year">
+            <option value="all"
+              {% if p._value == "all" %}selected{% endif %}>
+              All Years
+            </option>
+            {% if p._choices %}
+              {% for y in p._choices | sort(reverse=True) %}
+                <option value="{{ y }}"
+                  {% if y == p._value %}selected{% endif %}>
+                  {{ y }}
+                </option>
+              {% endfor %}
+            {% endif %}
+          </select>
+        </label>
+
+      {% elif p.name == "year" %}
+        <!-- Standard year dropdown (dynamically populated per species) -->
         <label>
           {{ p.label }}
           <select name="year">
@@ -240,7 +261,9 @@
             {% endif %}
           </select>
         </label>
+
       {% elif p.type == "select" and p._choices %}
+        <!-- Static select dropdown -->
         <label>
           {{ p.label }}
           <select name="{{ p.name }}">
@@ -252,7 +275,9 @@
             {% endfor %}
           </select>
         </label>
+
       {% elif p.type == "int" %}
+        <!-- Integer number input -->
         <label>
           {{ p.label }}
           <input type="number" name="{{ p.name }}" value="{{ p._value or '' }}"
@@ -260,6 +285,18 @@
                         border:1px solid var(--border); border-radius:4px;
                         padding:5px 8px; font-family:inherit; font-size:12px;">
         </label>
+
+      {% elif p.type == "float" %}
+        <!-- Float number input -->
+        <label>
+          {{ p.label }}
+          <input type="number" name="{{ p.name }}" value="{{ p._value or '' }}"
+                 step="0.5"
+                 style="width:80px; background:var(--surface); color:var(--fg);
+                        border:1px solid var(--border); border-radius:4px;
+                        padding:5px 8px; font-family:inherit; font-size:12px;">
+        </label>
+
       {% endif %}
     {% endfor %}
 
@@ -273,9 +310,8 @@
 <div class="plot-area">
   {% if show_image %}
     <img
-      src="{{ url_for('plot_image', plot_type=plot_type, species_id=species_id, year=year, theme=theme) }}"
-      alt="Annual heatmap for species {{ species_id }}, {{ year }}"
-      width="1000" height="800"
+      src="{{ plot_image_url }}"
+      alt="Plot: {{ plot_type }} for species {{ species_id }}, {{ year }}"
     >
   {% else %}
     <p class="no-selection">Select a species to render a plot.</p>
