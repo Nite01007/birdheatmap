@@ -12,6 +12,7 @@ dependencies = [
     "matplotlib>=3.8",
     "astral>=3.2",
     "flask>=3.0",
+    "flask-limiter>=3.5",
     "apscheduler>=3.10",
     "python-dotenv>=1.0",
     "click>=8.1",

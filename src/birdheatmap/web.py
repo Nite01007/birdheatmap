@@ -14,6 +14,8 @@ import logging
 from datetime import datetime, timezone
 
 from flask import Flask, Response, abort, redirect, render_template, request, url_for
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from . import config
 from .cache import get_cached, put_cached
@@ -30,6 +32,13 @@ from .plots import registry
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder="templates")
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["60 per minute"],
+    storage_uri="memory://",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +130,7 @@ def _gather_extra_params(plot_spec: list[dict], request_args) -> dict:
 # ---------------------------------------------------------------------------
 
 @app.route("/")
+@limiter.limit("30 per minute")
 def index():
     conn = _open()
 
@@ -209,6 +219,7 @@ def index():
 
 
 @app.route("/plot/<plot_type>/<int:species_id>.png")
+@limiter.limit("8 per minute")
 def plot_image(plot_type: str, species_id: int):
     if plot_type not in registry:
         abort(404)
@@ -264,6 +275,7 @@ def plot_image(plot_type: str, species_id: int):
 
 
 @app.route("/status")
+@limiter.limit("10 per minute")
 def status_json():
     import json
     conn = _open()
