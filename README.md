@@ -2,7 +2,7 @@
 
 Annual species-activity heatmaps from your [BirdWeather](https://birdweather.com) station.
 
-## Available plots
+## Available plots (Samples below)
 
 | Plot | Description |
 |------|-------------|
@@ -197,6 +197,28 @@ All settings live in `/etc/birdheatmap/birdheatmap.env` (production) or `.env`
 | `SYNC_INTERVAL_MINUTES` | `60` | Incremental sync frequency |
 | `BACKFILL_PAGE_SIZE` | `500` | Detections per GraphQL request |
 | `BACKFILL_RATE_LIMIT_SECONDS` | `1.0` | Delay between backfill requests |
+
+---
+
+## Sample Plots:
+Annual Song Observations:
+<img width="989" height="802" alt="image" src="https://github.com/user-attachments/assets/15c37ab8-cef8-4466-95b6-c4a4a1ee566d" />
+
+All Years (overlay):
+<img width="989" height="802" alt="image" src="https://github.com/user-attachments/assets/6f28c55f-eb56-4a06-b5b8-f70898514ea4" />
+
+Dawn Chorus:
+<img width="1389" height="908" alt="image" src="https://github.com/user-attachments/assets/1fa9d6ae-841b-4432-a467-28be43237a9f" />
+
+Season Presence:
+<img width="1389" height="2978" alt="image" src="https://github.com/user-attachments/assets/d2e9cced-c3d1-47da-aae0-fb82c0edad47" />
+
+Seasonal Succession:
+<img width="1389" height="902" alt="image" src="https://github.com/user-attachments/assets/7ad408f4-dd25-4d30-881f-8117687a64c4" />
+
+Daily Activity Rhythms:
+<img width="1189" height="1201" alt="image" src="https://github.com/user-attachments/assets/55c91a2f-64ca-44a9-9974-f71a1b4b6301" />
+
 
 ---
 
