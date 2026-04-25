@@ -297,6 +297,16 @@
                         padding:5px 8px; font-family:inherit; font-size:12px;">
         </label>
 
+      {% elif p.type == "bool" %}
+        <!-- Checkbox: checkbox before hidden so checked→"true" is first value -->
+        <label style="flex-direction:row; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" name="{{ p.name }}" value="true"
+                 {% if p._value in [true, "true", "True", "1"] %}checked{% endif %}
+                 style="cursor:pointer; accent-color:var(--accent); width:14px; height:14px;">
+          <input type="hidden" name="{{ p.name }}" value="false">
+          {{ p.label }}
+        </label>
+
       {% endif %}
     {% endfor %}
 

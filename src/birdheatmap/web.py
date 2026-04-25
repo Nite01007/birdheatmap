@@ -121,6 +121,8 @@ def _gather_extra_params(plot_spec: list[dict], request_args) -> dict:
                     val = float(val)
                 except (TypeError, ValueError):
                     val = p.get("default")
+            elif p.get("type") == "bool":
+                val = val in (True, "true", "True", "1", "yes")
         extra[p["name"]] = val
     return extra
 

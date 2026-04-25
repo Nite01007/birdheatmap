@@ -11,6 +11,7 @@ Annual species-activity heatmaps from your [BirdWeather](https://birdweather.com
 | **Species Presence Calendar** | Horizontal bar chart showing when each species is present across the year. Bars span first–last detection; bright overlay shows the middle 50% (IQR) of detection dates. Station-wide. |
 | **Seasonal Succession (Ridge)** | Ridge/joy plot of seasonal activity peaks. Each ridge is a peak-normalized KDE of detection day-of-year, sorted by timing so the cascade reads Jan→Dec. Station-wide. |
 | **Dawn Chorus** | Who sings first? Small-multiple histograms of detection time relative to local sunrise (−60 to +180 min), one panel per species, sorted earliest-to-latest singer. Station-wide. |
+| **Time-of-Day Activity (Violin)** | Horizontal violin plot of each species' daily activity rhythm, sorted by median detection time. Supports year × season filtering — including cross-year seasonal pooling (e.g. "all springs combined"). Station-wide. |
 
 ---
 
