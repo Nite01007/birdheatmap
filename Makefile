@@ -24,6 +24,10 @@ install: ## Create local dev venv and install package in editable mode
 	$(PIP) install --quiet -e ".[dev]"
 	@echo "Venv ready.  Activate with: source $(VENV)/bin/activate"
 
+.PHONY: update-deps
+update-deps: ## Regenerate requirements.lock from pyproject.toml (run after changing dependencies)
+	$(VENV)/bin/pip-compile --generate-hashes --output-file requirements.lock pyproject.toml
+
 .PHONY: sync
 sync: ## Run a one-shot sync (backfill if needed, then incremental)
 	$(PY) -m birdheatmap sync

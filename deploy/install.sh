@@ -96,8 +96,11 @@ install_code() {
     info "Upgrading pip …"
     "$INSTALL_DIR/venv/bin/pip" install --quiet --upgrade pip
 
-    info "Installing birdheatmap package …"
-    "$INSTALL_DIR/venv/bin/pip" install --quiet "$REPO_ROOT"
+    info "Installing pinned dependencies from lockfile …"
+    "$INSTALL_DIR/venv/bin/pip" install --quiet --require-hashes -r "$REPO_ROOT/requirements.lock"
+
+    info "Installing birdheatmap package (deps already locked above) …"
+    "$INSTALL_DIR/venv/bin/pip" install --quiet --no-deps "$REPO_ROOT"
 
     # Pre-compile .pyc files so the service (running under ProtectSystem=strict,
     # which makes the code directory read-only) never needs to write at runtime.
