@@ -291,5 +291,6 @@ def status_json():
 # ---------------------------------------------------------------------------
 
 def run() -> None:
-    logger.info("Starting web server on %s:%d", config.BIND_HOST, config.BIND_PORT)
-    app.run(host=config.BIND_HOST, port=config.BIND_PORT, debug=False)
+    from waitress import serve
+    logger.info("Starting on %s:%d", config.BIND_HOST, config.BIND_PORT)
+    serve(app, host=config.BIND_HOST, port=config.BIND_PORT, threads=4)

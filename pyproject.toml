@@ -16,6 +16,7 @@ dependencies = [
     "apscheduler>=3.10",
     "python-dotenv>=1.0",
     "click>=8.1",
+    "waitress>=3.0",
 ]
 
 [project.optional-dependencies]
