@@ -9,6 +9,7 @@ Annual species-activity heatmaps from your [BirdWeather](https://birdweather.com
 | **Annual Song Observations** | Year-long activity grid. Each dot is a 5-minute window with at least one detection. Sunrise/sunset curves overlaid. |
 | **All Years (overlay)** | Same axes as the annual heatmap, every available year overlaid in distinct colours for direct comparison. |
 | **Species Presence Calendar** | Horizontal bar chart showing when each species is present across the year. Bars span first–last detection; bright overlay shows the middle 50% (IQR) of detection dates.|
+| **Species Potrait** | Vertical violin plot of annual presence alongside seasonal time-of-day activity violin plots, combined across all years' data.|
 | **Seasonal Succession (Ridge)** | Ridge/joy plot of seasonal activity peaks. Each ridge is a peak-normalized KDE of detection day-of-year, sorted by timing so the cascade reads Jan→Dec.|
 | **Dawn Chorus** | Who sings first? Small-multiple histograms of detection time relative to local sunrise (−60 to +180 min), one panel per species, sorted earliest-to-latest singer.|
 | **Time-of-Day Activity (Violin)** | Horizontal violin plot of each species' daily activity rhythm, sorted by median detection time. Supports year × season filtering — including cross-year seasonal pooling (e.g. "all springs combined").|
@@ -213,6 +214,8 @@ Seasonal Succession:
 Daily Activity Rhythms:
 <img width="1189" height="1201" alt="image" src="https://github.com/user-attachments/assets/55c91a2f-64ca-44a9-9974-f71a1b4b6301" />
 
+Species Portrail:
+<img width="2091" height="1035" alt="image" src="https://github.com/user-attachments/assets/e27cb40e-2d04-402a-a9cc-28cdd05e7bb0" />
 
 ---
 
