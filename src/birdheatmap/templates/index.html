@@ -297,6 +297,16 @@
                         padding:5px 8px; font-family:inherit; font-size:12px;">
         </label>
 
+      {% elif p.type == "date" %}
+        <!-- Date picker -->
+        <label>
+          {{ p.label }}
+          <input type="date" name="{{ p.name }}" value="{{ p._value or '' }}"
+                 style="background:var(--surface); color:var(--fg);
+                        border:1px solid var(--border); border-radius:4px;
+                        padding:5px 8px; font-family:inherit; font-size:12px;">
+        </label>
+
       {% elif p.type == "bool" %}
         <!-- Checkbox: checkbox before hidden so checked→"true" is first value -->
         <label style="flex-direction:row; align-items:center; gap:6px; cursor:pointer;">
@@ -332,7 +342,7 @@
 <script>
 // Hide the species selector for plot types that are station-wide (no species needed).
 (function () {
-  var STATION_WIDE = { "yesterday_timeline": true };
+  var STATION_WIDE = { "daily_timeline": true, "date_range_timeline": true };
   var plotSel     = document.querySelector('select[name="plot_type"]');
   var speciesLbl  = document.getElementById("species-label");
   function sync() {

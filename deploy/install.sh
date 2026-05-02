@@ -100,6 +100,9 @@ install_code() {
     "$INSTALL_DIR/venv/bin/pip" install --quiet --require-hashes -r "$REPO_ROOT/requirements.lock"
 
     info "Installing birdheatmap package (deps already locked above) …"
+    # Uninstall first so pip removes any files that no longer exist in the source
+    # (e.g. deleted plot modules).  Ignore errors if not yet installed.
+    "$INSTALL_DIR/venv/bin/pip" uninstall -y birdheatmap 2>/dev/null || true
     "$INSTALL_DIR/venv/bin/pip" install --quiet --no-deps "$REPO_ROOT"
 
     # Pre-compile .pyc files so the service (running under ProtectSystem=strict,
