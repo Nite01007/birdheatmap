@@ -208,8 +208,8 @@
       </select>
     </label>
 
-    <!-- Species -->
-    <label>
+    <!-- Species (hidden for station-wide plots that don't need a selection) -->
+    <label id="species-label">
       Species
       <select name="species_id" onchange="this.form.submit()">
         <option value="">— select a species —</option>
@@ -327,6 +327,25 @@
     <p class="no-selection">Select a species to render a plot.</p>
   {% endif %}
 </div>
+
+
+<script>
+// Hide the species selector for plot types that are station-wide (no species needed).
+(function () {
+  var STATION_WIDE = { "yesterday_timeline": true };
+  var plotSel     = document.querySelector('select[name="plot_type"]');
+  var speciesLbl  = document.getElementById("species-label");
+  function sync() {
+    if (speciesLbl) {
+      speciesLbl.style.display = STATION_WIDE[plotSel.value] ? "none" : "";
+    }
+  }
+  if (plotSel) {
+    plotSel.addEventListener("change", sync);
+    sync(); // apply on page load (preserves current URL selection)
+  }
+}());
+</script>
 
 </body>
 </html>

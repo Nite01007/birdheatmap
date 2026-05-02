@@ -41,6 +41,11 @@ class PlotModule:
     def params(self) -> list[dict[str, Any]]:
         return self._module.PARAMS  # type: ignore[attr-defined]
 
+    @property
+    def requires_species(self) -> bool:
+        """False for station-wide plots that set REQUIRES_SPECIES = False."""
+        return bool(getattr(self._module, "REQUIRES_SPECIES", True))
+
     def render(self, db, species_id: int, **kwargs: Any) -> bytes:
         return self._module.render(db, species_id, **kwargs)  # type: ignore[attr-defined]
 

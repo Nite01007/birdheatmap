@@ -184,16 +184,22 @@ def index():
                 spec["_value"]   = request.args.get(spec["name"], spec.get("default"))
             plot_params.append(spec)
 
-    # Show the image if species + plot type are both selected.
-    has_year_param = any(p["name"] == "year" for p in plot_params)
-    show_image = bool(species_id and plot_type and (year is not None or not has_year_param))
+    # Show the image if the required inputs are present.
+    # Station-wide plots (REQUIRES_SPECIES = False) don't need a species selection.
+    has_year_param     = any(p["name"] == "year" for p in plot_params)
+    plot_needs_species = registry[plot_type].requires_species if (plot_type and plot_type in registry) else True
+    show_image = bool(
+        plot_type
+        and (species_id or not plot_needs_species)
+        and (year is not None or not has_year_param)
+    )
 
     # Build the image URL dynamically so all params (including extras) are included.
     plot_image_url = None
     if show_image:
         img_kwargs: dict = {
             "plot_type":  plot_type,
-            "species_id": species_id,
+            "species_id": species_id or 0,   # 0 for station-wide plots with no species selected
             "theme":      theme,
         }
         if year is not None:
