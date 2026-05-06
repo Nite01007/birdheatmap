@@ -1,20 +1,42 @@
 # BirdHeatmap
 
-Annual species-activity heatmaps from your [BirdWeather](https://birdweather.com) station.
+Local web dashboard for your [BirdWeather](https://birdweather.com) station.
+Syncs detection history to a local SQLite database and renders species-activity
+plots as server-side PNGs, plus interactive views for recent audio recordings,
+species arrivals, and gone-quiet species.
 
-## Available plots (Samples below)
+---
 
-| Plot | Description |
-|------|-------------|
-| **Annual Song Observations** | Year-long activity grid. Each dot is a 5-minute window with at least one detection. Sunrise/sunset curves overlaid. |
-| **All Years (overlay)** | Same axes as the annual heatmap, every available year overlaid in distinct colours for direct comparison. |
-| **Species Presence Calendar** | Horizontal bar chart showing when each species is present across the year. Bars span first–last detection; bright overlay shows the middle 50% (IQR) of detection dates.|
-| **Species Portrait** | Vertical violin plot of annual presence alongside seasonal time-of-day activity violin plots, combined across all years' data.|
-| **Seasonal Succession (Ridge)** | Ridge/joy plot of seasonal activity peaks. Each ridge is a peak-normalized KDE of detection day-of-year, sorted by timing so the cascade reads Jan→Dec.|
-| **Dawn Chorus** | Who sings first? Small-multiple histograms of detection time relative to local sunrise (−60 to +180 min), one panel per species, sorted earliest-to-latest singer.|
-| **Time-of-Day Activity (Violin)** | Horizontal violin plot of each species' daily activity rhythm, sorted by median detection time. Supports year × season filtering — including cross-year seasonal pooling (e.g. "all springs combined").|
-| **Daily Timeline** | All detections from a single day as a time-of-day × species heatmap. 15-minute bins, sunrise/sunset overlaid. Defaults to yesterday; any date is selectable. Station-wide.|
-| **Date Range Timeline** | Same heatmap view across a date range, with counts averaged per day so the colour scale stays comparable regardless of range length. Defaults to the last 7 days. Station-wide.|
+## Plots
+
+Species-level matplotlib plots, rendered server-side.  Select a plot type and
+species in the UI; click **Show** to render.
+
+| Plot | Species? | Description |
+|------|----------|-------------|
+| **Annual Song Observations** | per species | Year-long activity scatter: each dot is a 5-minute window with at least one detection. Sunrise/sunset curves overlaid. |
+| **All Years (overlay)** | per species | Same axes as Annual Song Observations, every available year overlaid in distinct colours for direct comparison. |
+| **Species Portrait** | per species | Vertical violin of annual presence (left) alongside seasonal time-of-day activity violins (right), all years pooled. |
+| **Seasonal Succession (Ridge)** | per species | Ridge/joy plot of seasonal activity peaks — peak-normalized KDE of detection day-of-year, sorted so the cascade reads Jan→Dec. |
+| **Time-of-Day Activity (Violin)** | per species | Horizontal violin of daily activity rhythm, sorted by median detection time. Supports year × season filtering and cross-year pooling (e.g. all springs combined). |
+| **Dawn Chorus** | station-wide | Who sings first? Small-multiple histograms of detection time relative to local sunrise (−60 to +180 min), one panel per species, sorted earliest-to-latest singer. |
+| **Species Presence Calendar** | station-wide | Horizontal bar chart: bars span first–last detection; bright overlay = middle 50% (IQR) of detection day-of-year. Shows when each species is most reliably present. |
+| **Daily Timeline** | station-wide | All detections from a single day as a time-of-day × species heatmap. 15-minute bins, sunrise/sunset overlaid. Defaults to yesterday. |
+| **Date Range Timeline** | station-wide | Same heatmap view across a date range, counts averaged per day so the colour scale stays comparable regardless of range length. Defaults to the last 7 days. |
+
+---
+
+## Interactive views
+
+HTML pages with live or DB-backed data — no image rendering.
+Accessible from the navigation bar at the top of every page.
+
+| View | URL | Description |
+|------|-----|-------------|
+| **Recordings** | `/recordings` | The 100 most recent detections from BirdWeather, grouped by species with collapsible rows. Each detection has an HTML5 audio player pointing to the BirdWeather soundscape CDN. |
+| **Species Recordings** | `/recordings/species/<id>` | The 100 most recent recordings for a single species. Reachable via the "all →" link on each species group, or the species dropdown at the top of the Recordings page (all 200+ DB species available). |
+| **Arrivals** | `/arrivals` | Species detected for the first time within a chosen window (This Week / This Month / This Year / All Time). "First time" means no prior detection exists in the local DB before the window opened. Period selector swaps content via AJAX — no page reload. |
+| **Missing** | `/missing` | Species that appeared in a past comparison window but have zero detections in the equivalent current window. Comparison selector: vs Last Week / vs Last Month / vs Same Period Last Year. AJAX period swap. |
 
 ---
 
@@ -185,7 +207,7 @@ All settings live in `/etc/birdheatmap/birdheatmap.env` (production) or `.env`
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `STATION_ID` | *(required)* | Your BirdWeather station ID |
+| `STATION_ID` | *(required)* | Your BirdWeather station ID (numeric) |
 | `BACKFILL_FROM_DATE` | `2020-01-01` | Earliest date to fetch during backfill — set to just before your station came online |
 | `DB_PATH` | `/var/lib/birdheatmap/birdweather.sqlite` | SQLite database path |
 | `CACHE_PATH` | `/var/lib/birdheatmap/cache` | PNG render cache directory |
@@ -194,36 +216,8 @@ All settings live in `/etc/birdheatmap/birdheatmap.env` (production) or `.env`
 | `SYNC_INTERVAL_MINUTES` | `60` | Incremental sync frequency |
 | `BACKFILL_PAGE_SIZE` | `500` | Detections per GraphQL request |
 | `BACKFILL_RATE_LIMIT_SECONDS` | `1.0` | Delay between backfill requests |
-
----
-
-## Sample Plots:
-Annual Song Observations:
-<img width="989" height="802" alt="image" src="https://github.com/user-attachments/assets/15c37ab8-cef8-4466-95b6-c4a4a1ee566d" />
-
-All Years (overlay):
-<img width="989" height="802" alt="image" src="https://github.com/user-attachments/assets/6f28c55f-eb56-4a06-b5b8-f70898514ea4" />
-
-Dawn Chorus:
-<img width="1389" height="908" alt="image" src="https://github.com/user-attachments/assets/1fa9d6ae-841b-4432-a467-28be43237a9f" />
-
-Season Presence:
-<img width="1389" height="2978" alt="image" src="https://github.com/user-attachments/assets/d2e9cced-c3d1-47da-aae0-fb82c0edad47" />
-
-Seasonal Succession:
-<img width="1389" height="902" alt="image" src="https://github.com/user-attachments/assets/7ad408f4-dd25-4d30-881f-8117687a64c4" />
-
-Daily Activity Rhythms:
-<img width="1189" height="1201" alt="image" src="https://github.com/user-attachments/assets/55c91a2f-64ca-44a9-9974-f71a1b4b6301" />
-
-Species Portrait:
-<img width="2091" height="1035" alt="image" src="https://github.com/user-attachments/assets/e27cb40e-2d04-402a-a9cc-28cdd05e7bb0" />
-
-Daily Timeline:
-![Daily Timeline sample](samples/daily_timeline_sample.png)
-
-Date Range Timeline:
-![Date Range Timeline sample](samples/date_range_timeline_sample.png)
+| `BIRDWEATHER_TOKEN` | same as `STATION_ID` | Token used in REST API URLs (`/api/v1/stations/{token}/…`). Public stations use their numeric ID; override if yours differs. |
+| `BIRDWEATHER_REST_URL` | `https://app.birdweather.com/api/v1` | BirdWeather REST API base URL |
 
 ---
 
@@ -234,7 +228,7 @@ python -m birdheatmap --help
 
 python -m birdheatmap sync [--dry-run] [--max-pages N]
 python -m birdheatmap serve
-python -m birdheatmap render --plot annual_heatmap --species "Black-capped Chickadee" --year 2025 --out out.png
+python -m birdheatmap render --plot annual_heatmap --species "American Redstart" --year 2025 --out out.png
 python -m birdheatmap plots
 python -m birdheatmap species
 python -m birdheatmap reset-backfill   # clear backfill state to re-fetch all history
@@ -261,9 +255,31 @@ def render(db, species_id: int, **params) -> bytes:
 
 3. Restart the service — the registry auto-discovers it. No other files to edit.
 
-See `src/birdheatmap/plots/README.md` for the full parameter spec and a list of
-planned future plot types, and `_PALETTES` in any plot file to see how light/dark
-colour themes are organised.
+Set `REQUIRES_SPECIES = False` at module level for station-wide plots that don't
+need a species selection (the species dropdown is hidden automatically in the UI).
+
+See `src/birdheatmap/plots/README.md` for the full parameter spec, and `_PALETTES`
+in any existing plot file for how dark/light colour themes are structured.
+
+## Adding a new interactive view
+
+1. Create `src/birdheatmap/views/my_new_view.py`.
+2. Expose the required interface:
+
+```python
+NAME: str = "my_new_view"
+DISPLAY_NAME: str = "My New View"
+DESCRIPTION: str = "One sentence description."
+
+def render_data(db, **params) -> dict:
+    ...  # return a plain dict; the Flask route passes it to a Jinja2 template
+```
+
+3. Create `src/birdheatmap/templates/my_new_view.html`.
+4. Add a route in `src/birdheatmap/web.py` (follow the `arrivals_page` pattern).
+5. Add a nav link to the header in each existing template.
+
+The view registry auto-discovers all `.py` files in `src/birdheatmap/views/`.
 
 ---
 
@@ -296,6 +312,10 @@ automatically once new data is synced in. To force an immediate refresh:
 sudo rm -f /var/lib/birdheatmap/cache/*.png
 ```
 
+**Recordings page shows "API timed out"**
+The BirdWeather REST API is temporarily unavailable. The Plots and DB-backed views
+(Arrivals, Missing) continue to work from the local database. Retry in a moment.
+
 **"Species not found in cache"**
 The backfill hasn't reached that species yet, or sync hasn't run.
 ```bash
@@ -307,6 +327,37 @@ sudo -u birdheatmap /opt/birdheatmap/venv/bin/python -m birdheatmap species
 ```bash
 sudo chown -R birdheatmap:birdheatmap /var/lib/birdheatmap
 ```
+
+---
+
+## Sample plots
+
+Annual Song Observations (American Redstart · 2025):
+![Annual Song Observations](samples/annual_heatmap_sample.png)
+
+All Years (overlay) (Northern Cardinal · all years):
+![All Years overlay](samples/all_years_sample.png)
+
+Species Portrait (American Redstart · all years):
+![Species Portrait](samples/species_portrait_sample.png)
+
+Seasonal Succession / Ridge (Northern Cardinal · all years):
+![Seasonal Succession Ridge](samples/species_ridge_sample.png)
+
+Time-of-Day Activity Violin (Northern Cardinal · 2025):
+![Time-of-Day Activity Violin](samples/time_of_day_violin_sample.png)
+
+Dawn Chorus (station-wide · 2025):
+![Dawn Chorus](samples/dawn_chorus_sample.png)
+
+Species Presence Calendar (station-wide · 2026):
+![Species Presence Calendar](samples/species_arrival_departure_sample.png)
+
+Daily Timeline (station-wide · yesterday):
+![Daily Timeline](samples/daily_timeline_sample.png)
+
+Date Range Timeline (station-wide · last 7 days):
+![Date Range Timeline](samples/date_range_timeline_sample.png)
 
 ---
 

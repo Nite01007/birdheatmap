@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en" data-theme="{{ theme }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Arrivals · BirdHeatmap</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens ────────────────────────────────────────────────────── */
+    :root {
+      --bg:      #0e0e14;
+      --surface: #16161f;
+      --border:  #2a2a3c;
+      --fg:      #c8c8d4;
+      --fg-dim:  #666680;
+      --accent:  #5ba8d4;
+      --ok:      #5ba87a;
+      --warn:    #e8a04a;
+    }
+    :root[data-theme="light"] {
+      --bg:      #f8f8fc;
+      --surface: #eeeef6;
+      --border:  #ccccdc;
+      --fg:      #2a2a3c;
+      --fg-dim:  #666680;
+      --accent:  #1a6fa8;
+      --ok:      #1a7830;
+      --warn:    #b86a10;
+    }
+
+    body {
+      background: var(--bg); color: var(--fg);
+      font-family: ui-monospace, "Cascadia Code", "Fira Mono", monospace;
+      font-size: 13px; min-height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
+    header {
+      padding: 14px 20px 12px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+    header .subtitle { color: var(--fg-dim); font-size: 11px; }
+
+    .view-nav { display: flex; gap: 4px; margin-left: 8px; }
+    .nav-link {
+      color: var(--fg-dim); text-decoration: none; font-size: 11px;
+      padding: 3px 9px; border-radius: 4px; border: 1px solid transparent; white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--fg); border-color: var(--border); }
+    .nav-link.active { color: var(--accent); border-color: var(--accent); }
+
+    .sync-banner {
+      padding: 7px 20px; border-bottom: 1px solid var(--border);
+      color: var(--fg-dim); font-size: 11px; display: flex; gap: 24px; flex-wrap: wrap;
+    }
+    .sync-banner span { white-space: nowrap; }
+    .ok { color: var(--ok); } .warn { color: var(--warn); }
+
+    .theme-toggle {
+      margin-left: auto; color: var(--fg-dim); text-decoration: none;
+      font-size: 11px; border: 1px solid var(--border); border-radius: 4px;
+      padding: 4px 10px; white-space: nowrap; align-self: center;
+    }
+    .theme-toggle:hover { color: var(--fg); border-color: var(--fg-dim); }
+
+    /* ── Page body ───────────────────────────────────────────────────────── */
+    .page-body { padding: 20px; max-width: 860px; margin: 0 auto; }
+
+    .page-title    { font-size: 14px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
+    .page-subtitle { font-size: 11px; color: var(--fg-dim); margin-bottom: 20px; }
+
+    /* ── Period selector tabs ────────────────────────────────────────────── */
+    .period-tabs { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; }
+
+    .tab-btn {
+      background: var(--surface);
+      color: var(--fg-dim);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 5px 14px;
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .tab-btn:hover { color: var(--fg); border-color: var(--fg-dim); }
+    .tab-btn.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: transparent;
+      font-weight: 600;
+    }
+
+    /* ── Result count ────────────────────────────────────────────────────── */
+    .result-count {
+      font-size: 11px; color: var(--fg-dim); margin-bottom: 14px;
+    }
+    .result-count strong { color: var(--fg); }
+
+    /* ── Arrival cards ───────────────────────────────────────────────────── */
+    .card-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .arrival-card {
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .sp-name {
+      font-size: 13px; font-weight: 600; color: var(--fg); margin-bottom: 2px;
+    }
+    .sp-sci {
+      font-size: 10px; color: var(--fg-dim); font-style: italic; margin-bottom: 6px;
+    }
+    .sp-meta {
+      font-size: 11px; color: var(--fg-dim);
+    }
+    .sp-meta .highlight { color: var(--ok); font-weight: 600; }
+
+    /* ── Empty state ─────────────────────────────────────────────────────── */
+    .no-selection {
+      color: var(--fg-dim); padding: 60px 20px; text-align: center; font-size: 12px;
+    }
+
+    /* ── Loading indicator (shown while AJAX request is in-flight) ───────── */
+    .loading {
+      color: var(--fg-dim); padding: 30px 0; text-align: center; font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <h1>BirdHeatmap</h1>
+  <span class="subtitle">BirdWeather · {{ station_label }}</span>
+
+  <nav class="view-nav">
+    <a class="nav-link" href="/?theme={{ theme }}">Plots</a>
+    <a class="nav-link" href="/recordings?theme={{ theme }}">Recordings</a>
+    <a class="nav-link active" href="/arrivals?theme={{ theme }}">Arrivals</a>
+    <a class="nav-link" href="/missing?theme={{ theme }}">Missing</a>
+  </nav>
+
+  <a class="theme-toggle" href="{{ theme_toggle_url }}">
+    {% if theme == "light" %}Dark mode{% else %}Light mode{% endif %}
+  </a>
+</header>
+
+<!-- ── Sync status banner ── -->
+<div class="sync-banner">
+  <span>Last sync: <strong>{{ status.last_sync }}</strong></span>
+  <span>{{ status.n_detections }} detections cached</span>
+  <span>Backfill:
+    {% if status.backfill == "complete" %}
+      <strong class="ok">complete</strong>
+    {% else %}
+      <strong class="warn">{{ status.backfill }}</strong>
+    {% endif %}
+  </span>
+</div>
+
+<!-- ── Main content ── -->
+<div class="page-body">
+  <p class="page-title">Arrivals</p>
+  <p class="page-subtitle">
+    Species detected for the first time within the selected window.
+    "First time" means no prior detection exists in the local database before the window opened.
+  </p>
+
+  <!-- Period selector: clicking a button fetches new data without a page reload -->
+  <div class="period-tabs">
+    {% for key, label in data.periods.items() %}
+      <button class="tab-btn {% if key == data.period %}active{% endif %}"
+              data-period="{{ key }}"
+              onclick="loadPeriod('{{ key }}')">
+        {{ label }}
+      </button>
+    {% endfor %}
+  </div>
+
+  <!-- Content area — replaced by AJAX when the period changes -->
+  <div id="arrivals-content">
+    {{ arrivals_html | safe }}
+  </div>
+</div>
+
+<script>
+// Current theme — needed to pass to the AJAX endpoint so dates format correctly.
+var CURRENT_THEME = "{{ theme }}";
+
+// Fetch fresh data for the chosen period and re-render the list without a page reload.
+function loadPeriod(period) {
+  // Update active button styling immediately for snappy feedback.
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.period === period);
+  });
+
+  var content = document.getElementById('arrivals-content');
+  content.innerHTML = '<p class="loading">Loading…</p>';
+
+  fetch('/arrivals/data?period=' + encodeURIComponent(period) + '&theme=' + encodeURIComponent(CURRENT_THEME))
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      content.innerHTML = buildArrivalsHtml(data);
+    })
+    .catch(function(err) {
+      content.innerHTML = '<p class="no-selection">Failed to load data: ' + escHtml(String(err)) + '</p>';
+    });
+}
+
+// Build the HTML string for a list of arrivals from a data dict.
+function buildArrivalsHtml(data) {
+  if (!data.arrivals || data.arrivals.length === 0) {
+    return '<p class="no-selection">No new arrivals for ' + escHtml(data.period_label) + '.</p>';
+  }
+
+  var plural = data.count === 1 ? 'species' : 'species';
+  var html = '<p class="result-count"><strong>' + data.count + '</strong> new ' + plural + ' in ' + escHtml(data.period_label) + '</p>';
+  html += '<div class="card-list">';
+  data.arrivals.forEach(function(a) {
+    var detStr = a.total === 1 ? '1 detection' : (a.total + ' detections');
+    html += '<div class="arrival-card">'
+          +   '<div class="sp-name">'  + escHtml(a.common_name)    + '</div>'
+          +   '<div class="sp-sci">'   + escHtml(a.scientific_name || '') + '</div>'
+          +   '<div class="sp-meta">'
+          +     'First seen: ' + escHtml(a.first_seen)
+          +     ' &nbsp;·&nbsp; <span class="highlight">' + escHtml(detStr) + '</span> since arrival'
+          +   '</div>'
+          + '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// Safely escape a string for insertion into HTML (prevents XSS).
+function escHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>

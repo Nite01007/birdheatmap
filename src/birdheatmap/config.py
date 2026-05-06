@@ -56,3 +56,13 @@ BACKFILL_RATE_LIMIT_SECONDS: float = float(os.environ.get("BACKFILL_RATE_LIMIT_S
 
 # Log a progress message every N pages during backfill.
 BACKFILL_LOG_EVERY_N_PAGES: int = int(os.environ.get("BACKFILL_LOG_EVERY_N_PAGES", "10"))
+
+# BirdWeather REST API base URL (separate from the GraphQL endpoint above).
+BIRDWEATHER_REST_URL: str = os.environ.get(
+    "BIRDWEATHER_REST_URL", "https://app.birdweather.com/api/v1"
+)
+
+# Token used in REST API URLs (/api/v1/stations/{token}/detections).
+# For public stations this is the same numeric string as STATION_ID.
+# Set BIRDWEATHER_TOKEN in the env file if your station uses a different token.
+BIRDWEATHER_TOKEN: str = os.environ.get("BIRDWEATHER_TOKEN", STATION_ID)

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en" data-theme="{{ theme }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recordings · BirdHeatmap</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme tokens (same as index.html) ─────────────────────────────── */
+    :root {
+      --bg:      #0e0e14;
+      --surface: #16161f;
+      --border:  #2a2a3c;
+      --fg:      #c8c8d4;
+      --fg-dim:  #666680;
+      --accent:  #5ba8d4;
+      --ok:      #5ba87a;
+      --warn:    #e8a04a;
+    }
+    :root[data-theme="light"] {
+      --bg:      #f8f8fc;
+      --surface: #eeeef6;
+      --border:  #ccccdc;
+      --fg:      #2a2a3c;
+      --fg-dim:  #666680;
+      --accent:  #1a6fa8;
+      --ok:      #1a7830;
+      --warn:    #b86a10;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: ui-monospace, "Cascadia Code", "Fira Mono", monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
+    header {
+      padding: 14px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    header h1 { font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+    header .subtitle { color: var(--fg-dim); font-size: 11px; }
+
+    /* ── Navigation ──────────────────────────────────────────────────────── */
+    .view-nav { display: flex; gap: 4px; margin-left: 8px; }
+    .nav-link {
+      color: var(--fg-dim); text-decoration: none; font-size: 11px;
+      padding: 3px 9px; border-radius: 4px; border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--fg); border-color: var(--border); }
+    .nav-link.active { color: var(--accent); border-color: var(--accent); }
+
+    /* ── Sync banner ────────────────────────────────────────────────────── */
+    .sync-banner {
+      padding: 7px 20px; border-bottom: 1px solid var(--border);
+      color: var(--fg-dim); font-size: 11px; display: flex; gap: 24px; flex-wrap: wrap;
+    }
+    .sync-banner span { white-space: nowrap; }
+    .ok { color: var(--ok); } .warn { color: var(--warn); }
+
+    .theme-toggle {
+      margin-left: auto; color: var(--fg-dim); text-decoration: none;
+      font-size: 11px; border: 1px solid var(--border); border-radius: 4px;
+      padding: 4px 10px; white-space: nowrap; align-self: center;
+    }
+    .theme-toggle:hover { color: var(--fg); border-color: var(--fg-dim); }
+
+    /* ── Page body ───────────────────────────────────────────────────────── */
+    .page-body { padding: 20px; max-width: 860px; margin: 0 auto; }
+
+    .page-title { font-size: 14px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
+    .page-subtitle { font-size: 11px; color: var(--fg-dim); margin-bottom: 20px; }
+
+    /* ── Error state ────────────────────────────────────────────────────── */
+    .error-box {
+      padding: 16px 20px; border: 1px solid var(--warn); border-radius: 6px;
+      color: var(--warn); font-size: 12px; margin-bottom: 16px;
+    }
+
+    /* ── Species groups ─────────────────────────────────────────────────── */
+    .species-group {
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    /* Species header row — click to expand/collapse */
+    .species-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface);
+      cursor: pointer;
+      user-select: none;
+    }
+    .species-header:hover { background: var(--border); }
+
+    .species-thumb {
+      width: 40px; height: 40px;
+      border-radius: 4px; object-fit: cover; flex-shrink: 0;
+      background: var(--border);
+    }
+
+    .species-info { flex: 1; min-width: 0; }
+    .species-name { font-size: 13px; font-weight: 600; color: var(--fg); display: block; }
+    .species-sci  { font-size: 10px; color: var(--fg-dim); font-style: italic; }
+
+    .species-count { font-size: 11px; color: var(--fg-dim); white-space: nowrap; }
+    .species-all-link {
+      font-size: 11px; color: var(--accent); text-decoration: none;
+      white-space: nowrap; flex-shrink: 0; padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .species-all-link:hover { text-decoration: underline; }
+    .expand-icon { font-size: 10px; color: var(--fg-dim); flex-shrink: 0; width: 16px; text-align: center; }
+
+    /* Recordings list — hidden by default, shown when expanded */
+    .species-recordings { display: none; }
+
+    .recording-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .recording-item:nth-child(even) { background: var(--surface); }
+
+    .rec-time       { font-size: 11px; color: var(--fg); min-width: 160px; }
+    .rec-confidence { font-size: 11px; color: var(--fg-dim); min-width: 50px; }
+    .rec-confidence span { color: var(--accent); font-weight: 600; }
+
+    /* HTML5 audio player — let the browser handle the look; just fix the size */
+    .rec-audio {
+      height: 28px;
+      width: 260px;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .no-audio { font-size: 11px; color: var(--fg-dim); font-style: italic; }
+
+    /* ── Empty/loading states ────────────────────────────────────────────── */
+    .no-selection {
+      color: var(--fg-dim); padding: 60px 20px;
+      text-align: center; font-size: 12px;
+    }
+
+    /* ── Species picker ─────────────────────────────────────────────────── */
+    .species-picker {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .species-picker label { font-size: 11px; color: var(--fg-dim); white-space: nowrap; }
+    .species-picker select {
+      background: var(--surface); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 5px 24px 5px 8px; font-family: inherit; font-size: 12px;
+      cursor: pointer; min-width: 220px;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666680'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+    }
+    .species-picker select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+
+    /* ── Responsive: stack audio player below metadata on narrow screens ─── */
+    @media (max-width: 560px) {
+      .recording-item { flex-direction: column; align-items: flex-start; }
+      .rec-audio { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <h1>BirdHeatmap</h1>
+  <span class="subtitle">BirdWeather · {{ station_label }}</span>
+
+  <nav class="view-nav">
+    <a class="nav-link" href="/?theme={{ theme }}">Plots</a>
+    <a class="nav-link active" href="/recordings?theme={{ theme }}">Recordings</a>
+    <a class="nav-link" href="/arrivals?theme={{ theme }}">Arrivals</a>
+    <a class="nav-link" href="/missing?theme={{ theme }}">Missing</a>
+  </nav>
+
+  <a class="theme-toggle" href="{{ theme_toggle_url }}">
+    {% if theme == "light" %}Dark mode{% else %}Light mode{% endif %}
+  </a>
+</header>
+
+<!-- ── Sync status banner ── -->
+<div class="sync-banner">
+  <span>Last sync: <strong>{{ status.last_sync }}</strong></span>
+  <span>{{ status.n_detections }} detections cached</span>
+  <span>Backfill:
+    {% if status.backfill == "complete" %}
+      <strong class="ok">complete</strong>
+    {% else %}
+      <strong class="warn">{{ status.backfill }}</strong>
+    {% endif %}
+  </span>
+</div>
+
+<!-- ── Main content ── -->
+<div class="page-body">
+  <p class="page-title">Recent Recordings</p>
+  <p class="page-subtitle">
+    {{ data.total }} most recent detections from BirdWeather, grouped by species.
+    Click a species row to expand its audio recordings.
+  </p>
+
+  <!-- Jump to any species by name — navigates to the per-species recordings page -->
+  <div class="species-picker">
+    <label for="species-jump">Browse by species:</label>
+    <select id="species-jump" onchange="goToSpecies(this)">
+      <option value="">— pick any species —</option>
+      {% for sp in species_list %}
+        <option value="{{ sp.id }}">{{ sp.common_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {% if data.error %}
+    <div class="error-box">{{ data.error }}</div>
+  {% endif %}
+
+  {% if data.groups %}
+    {% for group in data.groups %}
+    <div class="species-group">
+
+      <!-- Species header — click to expand/collapse -->
+      <div class="species-header" onclick="toggleGroup(this)" role="button" aria-expanded="false">
+        {% if group.thumbnail_url %}
+          <img class="species-thumb"
+               src="{{ group.thumbnail_url }}"
+               alt="{{ group.common_name }}"
+               onerror="this.style.display='none'">
+        {% endif %}
+
+        <div class="species-info">
+          <span class="species-name">{{ group.common_name }}</span>
+          {% if group.scientific_name %}
+            <span class="species-sci">{{ group.scientific_name }}</span>
+          {% endif %}
+        </div>
+
+        <span class="species-count">
+          {{ group.recordings|length }}
+          {{ "recording" if group.recordings|length == 1 else "recordings" }}
+        </span>
+        <!--
+          Stop the click from also triggering the group expand/collapse on the
+          parent div, then navigate to the per-species recordings page.
+        -->
+        <a class="species-all-link"
+           href="/recordings/species/{{ group.id }}?theme={{ theme }}"
+           onclick="event.stopPropagation()"
+           title="View all recordings for {{ group.common_name }}">
+          all&nbsp;→
+        </a>
+        <span class="expand-icon">▶</span>
+      </div>
+
+      <!-- Recordings list (hidden until expanded) -->
+      <div class="species-recordings">
+        {% for rec in group.recordings %}
+        <div class="recording-item">
+          <span class="rec-time">{{ rec.timestamp }}</span>
+          <span class="rec-confidence">
+            Confidence: <span>{{ rec.confidence }}%</span>
+          </span>
+
+          {% if rec.soundscape_url %}
+            <!--
+              The #t=start,end media fragment tells the browser to start playback
+              at the moment the bird was detected within the soundscape recording.
+              Works in Chrome/Firefox/Safari when the CDN supports HTTP Range requests.
+            -->
+            <audio class="rec-audio" controls preload="none">
+              <source src="{{ rec.soundscape_url }}#t={{ rec.soundscape_start }},{{ rec.soundscape_end }}">
+              Your browser does not support the audio element.
+            </audio>
+          {% else %}
+            <span class="no-audio">no audio</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+    {% endfor %}
+
+  {% elif not data.error %}
+    <p class="no-selection">No recent recordings found.</p>
+  {% endif %}
+</div>
+
+<script>
+var CURRENT_THEME = "{{ theme }}";
+
+// Navigate to the per-species recordings page when a species is chosen.
+function goToSpecies(select) {
+  var id = select.value;
+  if (id) {
+    window.location.href = '/recordings/species/' + id + '?theme=' + encodeURIComponent(CURRENT_THEME);
+  }
+}
+
+// Toggle a species group open or closed when the header is clicked.
+function toggleGroup(header) {
+  var recordings = header.nextElementSibling;
+  var icon       = header.querySelector('.expand-icon');
+  var isOpen     = recordings.style.display === 'block';
+
+  if (isOpen) {
+    recordings.style.display = 'none';
+    icon.textContent = '▶';
+    header.setAttribute('aria-expanded', 'false');
+  } else {
+    recordings.style.display = 'block';
+    icon.textContent = '▼';
+    header.setAttribute('aria-expanded', 'true');
+  }
+}
+</script>
+
+</body>
+</html>

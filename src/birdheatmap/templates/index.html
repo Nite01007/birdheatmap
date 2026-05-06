@@ -152,6 +152,20 @@
       margin: 0;
     }
 
+    /* ── Navigation (shared with recordings / arrivals / missing pages) ─── */
+    .view-nav { display: flex; gap: 4px; margin-left: 8px; }
+    .nav-link {
+      color: var(--fg-dim);
+      text-decoration: none;
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--fg); border-color: var(--border); }
+    .nav-link.active { color: var(--accent); border-color: var(--accent); }
+
     .theme-toggle {
       margin-left: auto;
       color: var(--fg-dim);
@@ -170,6 +184,14 @@
 <header>
   <h1>BirdHeatmap</h1>
   <span class="subtitle">BirdWeather · {{ station_label }}</span>
+
+  <nav class="view-nav">
+    <a class="nav-link active" href="/?theme={{ theme }}">Plots</a>
+    <a class="nav-link" href="/recordings?theme={{ theme }}">Recordings</a>
+    <a class="nav-link" href="/arrivals?theme={{ theme }}">Arrivals</a>
+    <a class="nav-link" href="/missing?theme={{ theme }}">Missing</a>
+  </nav>
+
   <a class="theme-toggle" href="{{ theme_toggle_url }}">
     {% if theme == "light" %}Dark mode{% else %}Light mode{% endif %}
   </a>

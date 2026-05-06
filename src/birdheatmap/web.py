@@ -5,11 +5,18 @@ reloads on form submission.  The species dropdown auto-submits on change
 so the year dropdown reflects only years with data for that species.
 
 Routes:
-    GET /                    main page (form + inline image if species selected)
+    GET /                      main page (form + inline image if species selected)
     GET /plot/<type>/<id>.png  render or serve cached PNG
-    GET /status              JSON sync status (used by nothing yet, handy for debugging)
+    GET /status                JSON sync status
+    GET /recordings            recent detections with audio, grouped by species
+    GET /recordings/data       JSON feed for recordings (no-JS fallback / testing)
+    GET /arrivals              species arriving for the first time in a window
+    GET /arrivals/data         JSON data for arrivals (AJAX period swap)
+    GET /missing               species that went silent vs a comparison window
+    GET /missing/data          JSON data for missing (AJAX comparison swap)
 """
 
+import json
 import logging
 from datetime import datetime, timezone
 
@@ -28,6 +35,7 @@ from .db import (
     open_db,
 )
 from .plots import registry
+from .views import registry as view_registry
 
 logger = logging.getLogger(__name__)
 
@@ -285,9 +293,181 @@ def plot_image(plot_type: str, species_id: int):
 @app.route("/status")
 @limiter.limit("10 per minute")
 def status_json():
-    import json
     conn = _open()
     data = _sync_status(conn)
+    conn.close()
+    return Response(json.dumps(data), mimetype="application/json")
+
+
+# ---------------------------------------------------------------------------
+# Shared helper for view pages
+# ---------------------------------------------------------------------------
+
+def _view_context(conn, theme: str, toggle_endpoint: str, **toggle_extra) -> dict:
+    """Build the dict of template variables shared by all three view pages."""
+    status = _sync_status(conn)
+    station_row = conn.execute("SELECT name FROM station LIMIT 1").fetchone()
+    station_label = station_row["name"] if station_row else f"station {config.STATION_ID}"
+    toggle_args = {"theme": "dark" if theme == "light" else "light", **toggle_extra}
+    theme_toggle_url = url_for(toggle_endpoint, **toggle_args)
+    return {
+        "theme":            theme,
+        "theme_toggle_url": theme_toggle_url,
+        "status":           status,
+        "station_label":    station_label,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Recordings
+# ---------------------------------------------------------------------------
+
+@app.route("/recordings")
+@limiter.limit("20 per minute")
+def recordings_page():
+    theme = _validated_theme(request.args.get("theme"))
+    conn = _open()
+    ctx = _view_context(conn, theme, "recordings_page")
+    data = view_registry["recordings"].render_data(conn, theme=theme)
+    species_list = list_species_with_detections(conn)
+    conn.close()
+    return render_template("recordings.html", data=data, species_list=species_list, **ctx)
+
+
+@app.route("/recordings/data")
+@limiter.limit("30 per minute")
+def recordings_data():
+    theme = _validated_theme(request.args.get("theme"))
+    conn = _open()
+    data = view_registry["recordings"].render_data(conn, theme=theme)
+    conn.close()
+    return Response(json.dumps(data), mimetype="application/json")
+
+
+@app.route("/recordings/species/<int:species_id>")
+@limiter.limit("20 per minute")
+def species_recordings_page(species_id: int):
+    theme = _validated_theme(request.args.get("theme"))
+    conn = _open()
+    ctx = _view_context(conn, theme, "species_recordings_page", species_id=species_id)
+    data = view_registry["species_recordings"].render_data(conn, species_id=species_id, theme=theme)
+    conn.close()
+    return render_template("species_recordings.html", data=data, **ctx)
+
+
+# ---------------------------------------------------------------------------
+# Arrivals
+# ---------------------------------------------------------------------------
+
+def _arrivals_html(data: dict) -> str:
+    """Render the arrivals list as an HTML string (used for initial page load
+    and as the return value of the AJAX endpoint — keeps both in sync)."""
+    if not data.get("arrivals"):
+        return f'<p class="no-selection">No new arrivals for {data["period_label"]}.</p>'
+
+    count = data["count"]
+    noun = "species" if count == 1 else "species"
+    html = f'<p class="result-count"><strong>{count}</strong> new {noun} in {data["period_label"]}</p>'
+    html += '<div class="card-list">'
+    for a in data["arrivals"]:
+        det = "1 detection" if a["total"] == 1 else f"{a['total']} detections"
+        sci = a["scientific_name"] or ""
+        html += (
+            f'<div class="arrival-card">'
+            f'<div class="sp-name">{a["common_name"]}</div>'
+            f'<div class="sp-sci">{sci}</div>'
+            f'<div class="sp-meta">First seen: {a["first_seen"]}'
+            f' &nbsp;·&nbsp; <span class="highlight">{det}</span> since arrival</div>'
+            f'</div>'
+        )
+    html += "</div>"
+    return html
+
+
+@app.route("/arrivals")
+@limiter.limit("20 per minute")
+def arrivals_page():
+    theme  = _validated_theme(request.args.get("theme"))
+    period = request.args.get("period", "week")
+    conn   = _open()
+    ctx    = _view_context(conn, theme, "arrivals_page")
+    data   = view_registry["arrivals"].render_data(conn, period=period, theme=theme)
+    conn.close()
+    return render_template(
+        "arrivals.html",
+        data         = data,
+        arrivals_html = _arrivals_html(data),
+        **ctx,
+    )
+
+
+@app.route("/arrivals/data")
+@limiter.limit("60 per minute")
+def arrivals_data():
+    theme  = _validated_theme(request.args.get("theme"))
+    period = request.args.get("period", "week")
+    conn   = _open()
+    data   = view_registry["arrivals"].render_data(conn, period=period, theme=theme)
+    conn.close()
+    return Response(json.dumps(data), mimetype="application/json")
+
+
+# ---------------------------------------------------------------------------
+# Missing (Gone Quiet)
+# ---------------------------------------------------------------------------
+
+def _missing_html(data: dict) -> str:
+    """Render the missing-species list as an HTML string (initial load + AJAX)."""
+    if not data.get("missing"):
+        return f'<p class="no-selection">No missing species for {data["comparison_label"]}.</p>'
+
+    count = data["count"]
+    html = (
+        f'<p class="result-count"><strong>{count}</strong> species gone quiet '
+        f'{data["comparison_label"]}</p>'
+    )
+    html += '<div class="card-list">'
+    for m in data["missing"]:
+        det = "1 detection" if m["count"] == 1 else f"{m['count']} detections"
+        sci = m["scientific_name"] or ""
+        html += (
+            f'<div class="missing-card">'
+            f'<div class="sp-name">{m["common_name"]}</div>'
+            f'<div class="sp-sci">{sci}</div>'
+            f'<div class="sp-meta">'
+            f'Last seen: <span class="highlight">{m["last_seen"]}</span>'
+            f' &nbsp;·&nbsp; {det} in comparison period'
+            f'</div>'
+            f'</div>'
+        )
+    html += "</div>"
+    return html
+
+
+@app.route("/missing")
+@limiter.limit("20 per minute")
+def missing_page():
+    theme      = _validated_theme(request.args.get("theme"))
+    comparison = request.args.get("comparison", "last_week")
+    conn       = _open()
+    ctx        = _view_context(conn, theme, "missing_page")
+    data       = view_registry["missing"].render_data(conn, comparison=comparison, theme=theme)
+    conn.close()
+    return render_template(
+        "missing.html",
+        data         = data,
+        missing_html = _missing_html(data),
+        **ctx,
+    )
+
+
+@app.route("/missing/data")
+@limiter.limit("60 per minute")
+def missing_data():
+    theme      = _validated_theme(request.args.get("theme"))
+    comparison = request.args.get("comparison", "last_week")
+    conn       = _open()
+    data       = view_registry["missing"].render_data(conn, comparison=comparison, theme=theme)
     conn.close()
     return Response(json.dumps(data), mimetype="application/json")
 

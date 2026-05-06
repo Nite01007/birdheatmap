@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en" data-theme="{{ theme }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ data.common_name }} · Recordings · BirdHeatmap</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0e0e14;
+      --surface: #16161f;
+      --border:  #2a2a3c;
+      --fg:      #c8c8d4;
+      --fg-dim:  #666680;
+      --accent:  #5ba8d4;
+      --ok:      #5ba87a;
+      --warn:    #e8a04a;
+    }
+    :root[data-theme="light"] {
+      --bg:      #f8f8fc;
+      --surface: #eeeef6;
+      --border:  #ccccdc;
+      --fg:      #2a2a3c;
+      --fg-dim:  #666680;
+      --accent:  #1a6fa8;
+      --ok:      #1a7830;
+      --warn:    #b86a10;
+    }
+
+    body {
+      background: var(--bg); color: var(--fg);
+      font-family: ui-monospace, "Cascadia Code", "Fira Mono", monospace;
+      font-size: 13px; min-height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
+    header {
+      padding: 14px 20px 12px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 15px; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; }
+    header .subtitle { color: var(--fg-dim); font-size: 11px; }
+
+    .view-nav { display: flex; gap: 4px; margin-left: 8px; }
+    .nav-link {
+      color: var(--fg-dim); text-decoration: none; font-size: 11px;
+      padding: 3px 9px; border-radius: 4px; border: 1px solid transparent; white-space: nowrap;
+    }
+    .nav-link:hover { color: var(--fg); border-color: var(--border); }
+    .nav-link.active { color: var(--accent); border-color: var(--accent); }
+
+    .sync-banner {
+      padding: 7px 20px; border-bottom: 1px solid var(--border);
+      color: var(--fg-dim); font-size: 11px; display: flex; gap: 24px; flex-wrap: wrap;
+    }
+    .sync-banner span { white-space: nowrap; }
+    .ok { color: var(--ok); } .warn { color: var(--warn); }
+
+    .theme-toggle {
+      margin-left: auto; color: var(--fg-dim); text-decoration: none;
+      font-size: 11px; border: 1px solid var(--border); border-radius: 4px;
+      padding: 4px 10px; white-space: nowrap; align-self: center;
+    }
+    .theme-toggle:hover { color: var(--fg); border-color: var(--fg-dim); }
+
+    /* ── Page body ───────────────────────────────────────────────────────── */
+    .page-body { padding: 20px; max-width: 860px; margin: 0 auto; }
+
+    .back-link {
+      display: inline-block; margin-bottom: 16px;
+      font-size: 11px; color: var(--fg-dim); text-decoration: none;
+    }
+    .back-link:hover { color: var(--accent); }
+
+    .page-title    { font-size: 14px; font-weight: 600; color: var(--fg); margin-bottom: 2px; }
+    .page-sci      { font-size: 11px; color: var(--fg-dim); font-style: italic; margin-bottom: 4px; }
+    .page-subtitle { font-size: 11px; color: var(--fg-dim); margin-bottom: 20px; }
+
+    /* ── Error state ────────────────────────────────────────────────────── */
+    .error-box {
+      padding: 16px 20px; border: 1px solid var(--warn); border-radius: 6px;
+      color: var(--warn); font-size: 12px; margin-bottom: 16px;
+    }
+
+    /* ── Recording list ─────────────────────────────────────────────────── */
+    .recording-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 9px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .recording-item:first-child { border-top: 1px solid var(--border); }
+    .recording-item:nth-child(even) { background: var(--surface); }
+
+    .rec-time       { font-size: 11px; color: var(--fg); min-width: 160px; }
+    .rec-confidence { font-size: 11px; color: var(--fg-dim); min-width: 60px; }
+    .rec-confidence span { color: var(--accent); font-weight: 600; }
+
+    .rec-audio { height: 28px; width: 260px; accent-color: var(--accent); flex-shrink: 0; }
+    .no-audio  { font-size: 11px; color: var(--fg-dim); font-style: italic; }
+
+    .no-selection {
+      color: var(--fg-dim); padding: 60px 20px; text-align: center; font-size: 12px;
+    }
+
+    @media (max-width: 560px) {
+      .recording-item { flex-direction: column; align-items: flex-start; }
+      .rec-audio { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>BirdHeatmap</h1>
+  <span class="subtitle">BirdWeather · {{ station_label }}</span>
+
+  <nav class="view-nav">
+    <a class="nav-link" href="/?theme={{ theme }}">Plots</a>
+    <a class="nav-link active" href="/recordings?theme={{ theme }}">Recordings</a>
+    <a class="nav-link" href="/arrivals?theme={{ theme }}">Arrivals</a>
+    <a class="nav-link" href="/missing?theme={{ theme }}">Missing</a>
+  </nav>
+
+  <a class="theme-toggle" href="{{ theme_toggle_url }}">
+    {% if theme == "light" %}Dark mode{% else %}Light mode{% endif %}
+  </a>
+</header>
+
+<div class="sync-banner">
+  <span>Last sync: <strong>{{ status.last_sync }}</strong></span>
+  <span>{{ status.n_detections }} detections cached</span>
+  <span>Backfill:
+    {% if status.backfill == "complete" %}
+      <strong class="ok">complete</strong>
+    {% else %}
+      <strong class="warn">{{ status.backfill }}</strong>
+    {% endif %}
+  </span>
+</div>
+
+<div class="page-body">
+  <a class="back-link" href="/recordings?theme={{ theme }}">← All recent recordings</a>
+
+  <p class="page-title">{{ data.common_name }}</p>
+  {% if data.scientific_name %}
+    <p class="page-sci">{{ data.scientific_name }}</p>
+  {% endif %}
+  <p class="page-subtitle">
+    Last {{ data.total }} recording{{ 's' if data.total != 1 else '' }} · newest first
+  </p>
+
+  {% if data.error %}
+    <div class="error-box">{{ data.error }}</div>
+  {% endif %}
+
+  {% if data.recordings %}
+    {% for rec in data.recordings %}
+    <div class="recording-item">
+      <span class="rec-time">{{ rec.timestamp }}</span>
+      <span class="rec-confidence">Confidence: <span>{{ rec.confidence }}%</span></span>
+
+      {% if rec.soundscape_url %}
+        <audio class="rec-audio" controls preload="none">
+          <source src="{{ rec.soundscape_url }}#t={{ rec.soundscape_start }},{{ rec.soundscape_end }}">
+        </audio>
+      {% else %}
+        <span class="no-audio">no audio</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+  {% elif not data.error %}
+    <p class="no-selection">No recent recordings found for {{ data.common_name }}.</p>
+  {% endif %}
+</div>
+
+</body>
+</html>
